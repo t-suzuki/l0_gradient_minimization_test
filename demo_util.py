@@ -15,7 +15,7 @@ def clip_img(img):
 def add_noise(img, sigma):
     return  clip_img(img + np.random.randn(*img.shape) * sigma)
 
-def get_configuration():
+def get_configuration(add_arguments_func=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--lambda', default=0.02, type=float,
             help='lambda parameter (larger: preference to smoother images)')
@@ -27,6 +27,8 @@ def get_configuration():
             help='resize input image to')
     parser.add_argument('file_path', type=str, nargs='?',
             help='input file path (default: lena)')
+    if add_arguments_func is not None:
+        add_arguments_func(parser)
     args = parser.parse_args()
 
     if args.file_path is None:
@@ -46,8 +48,9 @@ def get_configuration():
     print('{}: {}x{} -> {}x{}'.format(img_name, org_w, org_h, w, h))
     img = skimage.transform.resize(img, (h, w))
 
+    # access to commonly used arguments
     lmd = getattr(args, 'lambda')
     beta_max = args.beta_max
     beta_rate = args.beta_rate
-    return img, (lmd, beta_max, beta_rate)
+    return img, (lmd, beta_max, beta_rate), args
 

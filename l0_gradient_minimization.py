@@ -146,7 +146,7 @@ def l0_gradient_minimization_test():
             ax.legend()
 
     # 2D test
-    img, (lmd, beta_max, beta_rate) = get_configuration()
+    img, (lmd, beta_max, beta_rate), _ = get_configuration()
     sigma = 0.06
     img_noise = add_noise(img, sigma)
 
