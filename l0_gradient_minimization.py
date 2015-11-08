@@ -9,6 +9,8 @@ import numpy as np
 from scipy.fftpack import fft, ifft, fft2, ifft2, fftshift, ifftshift
 import matplotlib.pyplot as plt
 
+from demo_util import *
+
 # 1D
 def circulantshift(xs, h):
     return np.hstack([xs[h:], xs[:h]] if h > 0 else [xs[h:], xs[:h]])
@@ -144,20 +146,13 @@ def l0_gradient_minimization_test():
             ax.legend()
 
     # 2D test
-    import skimage
-    import skimage.data
-    import skimage.transform
-    import skimage.color
-
-    def clip_img(I): return np.clip(I, 0, 1)
-    img = skimage.data.lena()
-    img = skimage.transform.resize(img, (128, 128))
+    img, (lmd, beta_max, beta_rate) = get_configuration()
     sigma = 0.06
-    img_noise = clip_img(img + np.random.randn(*img.shape) * sigma)
+    img_noise = add_noise(img, sigma)
 
     fig, axs = plt.subplots(2, 3, figsize=(12, 8))
     fig.suptitle((r'$L_0$ Gradient Minimization on 2D Image (noise $\sigma={:.3}$).' + '\n'
-        + r'$\lambda={:.3}, \beta_{{max}}={:.2e}, \kappa={:.3f}$').format(sigma, lmd, beta_max, beta_rate),
+        + r'$\beta_{{max}}={:.2e}, \kappa={:.3f}$').format(sigma, beta_max, beta_rate),
         fontsize=16)
     axs[0, 0].imshow(img)
     axs[0, 0].set_title('original')
