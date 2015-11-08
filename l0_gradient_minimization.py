@@ -14,7 +14,15 @@ def circulantshift(xs, h):
     return np.hstack([xs[h:], xs[:h]] if h > 0 else [xs[h:], xs[:h]])
 
 def circulant_dx(xs, h):
-    return (circulantshift(xs, h) - circulantshift(xs, -h))*0.5
+    return (circulantshift(xs, h) - xs)
+
+def psf2otf(psf, N):
+    pad = np.zeros((N,))
+    n = len(psf)
+    pad[:n] = psf
+    pad = np.concatenate([pad[n/2:], pad[:n/2]])
+    otf = fft(pad)
+    return otf
 
 # 2D
 def circulantshift2_x(xs, h):
@@ -24,20 +32,17 @@ def circulantshift2_y(xs, h):
     return np.vstack([xs[h:, :], xs[:h, :]] if h > 0 else [xs[h:, :], xs[:h, :]])
 
 def circulant2_dx(xs, h):
-    return (circulantshift2_x(xs, h) - circulantshift2_x(xs, -h))*0.5
+    return (circulantshift2_x(xs, h) - xs)
 
 def circulant2_dy(xs, h):
-    return (circulantshift2_y(xs, h) - circulantshift2_y(xs, -h))*0.5
+    return (circulantshift2_y(xs, h) - xs)
 
 def l0_gradient_minimization_1d(I, lmd, beta_max, beta_rate=2.0, max_iter=30, return_history=False):
     S = np.array(I).ravel()
 
     # prepare FFT
     F_I = fft(S)
-    dx = np.zeros_like(S)
-    N = S.shape[0]
-    dx[N/2-1:N/2+2] = [-0.5, 0, 0.5]
-    F_denom = np.abs(fft(dx))**2.0
+    F_denom = np.abs(psf2otf([-1, 1], S.shape[0]))**2.0
 
     # optimization
     S_history = [S]
@@ -72,8 +77,8 @@ def l0_gradient_minimization_2d(I, lmd, beta_max, beta_rate=2.0, max_iter=30, re
     Ny, Nx = S.shape[:2]
     D = S.shape[2] if S.ndim == 3 else 1
     dx, dy = np.zeros((Ny, Nx)), np.zeros((Ny, Nx))
-    dx[Ny/2, Nx/2-1:Nx/2+2] = [-0.5, 0, 0.5]
-    dy[Ny/2-1:Ny/2+2, Nx/2] = [-0.5, 0, 0.5]
+    dx[Ny/2, Nx/2-1:Nx/2+1] = [-1, 1]
+    dy[Ny/2-1:Ny/2+1, Nx/2] = [-1, 1]
     F_denom = np.abs(fft2(dx))**2.0 + np.abs(fft2(dy))**2.0
     if D > 1: F_denom = np.dstack([F_denom]*D)
 
@@ -121,7 +126,10 @@ def l0_gradient_minimization_test():
     us_history = l0_gradient_minimization_1d(us_noisy, lmd, beta_max, beta_rate, 30, True)
 
     fig, axs = plt.subplots(5, 1)
-    fig.suptitle('$L_0$ Gradient Minimization on 1D Array')
+    fig.suptitle((r'$L_0$ Gradient Minimization on 1D Array.' + '\n'
+        + r'$\lambda={:.3}, \beta_{{max}}={:.2e}, \kappa={:.3f}$').format(
+        lmd, beta_max, beta_rate),
+        fontsize=16)
     axs[0].plot(xs, us, color='red', label='org', linestyle='--', linewidth=4, alpha=0.5)
     axs[0].plot(xs, us_noisy, color='blue', label='noisy', linewidth=2, alpha=0.5)
     axs[0].plot(xs, us_denoise, color='black', label='denoise', linewidth=2, alpha=0.8)
@@ -141,12 +149,16 @@ def l0_gradient_minimization_test():
     import skimage.transform
     import skimage.color
 
+    def clip_img(I): return np.clip(I, 0, 1)
     img = skimage.data.lena()
     img = skimage.transform.resize(img, (128, 128))
-    img_noise = img + np.random.randn(*img.shape) * 0.03
+    sigma = 0.06
+    img_noise = clip_img(img + np.random.randn(*img.shape) * sigma)
 
     fig, axs = plt.subplots(2, 3, figsize=(12, 8))
-    fig.suptitle('$L_0$ Gradient Minimization on 2D Image')
+    fig.suptitle((r'$L_0$ Gradient Minimization on 2D Image (noise $\sigma={:.3}$).' + '\n'
+        + r'$\lambda={:.3}, \beta_{{max}}={:.2e}, \kappa={:.3f}$').format(sigma, lmd, beta_max, beta_rate),
+        fontsize=16)
     axs[0, 0].imshow(img)
     axs[0, 0].set_title('original')
     axs[0, 1].imshow(img_noise)
@@ -155,7 +167,7 @@ def l0_gradient_minimization_test():
     denoise_axs = [axs[0, 2], axs[1, 0], axs[1, 1], axs[1, 2]]
     for ax, lmd in zip(denoise_axs, [0.002, 0.005, 0.02, 0.05]):
         res = l0_gradient_minimization_2d(img_noise, lmd, beta_max, beta_rate)
-        ax.imshow(res, interpolation='nearest')
+        ax.imshow(clip_img(res), interpolation='nearest')
         ax.set_title('denoise $\\lambda = %f$' % lmd)
 
 if __name__=='__main__':
